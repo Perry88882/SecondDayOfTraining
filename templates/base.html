@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}用户管理系统{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">用户管理系统</div>
+        <div class="nav-menu">
+            {% if session.get("username") %}
+                <span class="nav-welcome">欢迎，{{ session["username"] }}</span>
+                <a href="/logout" class="nav-link">退出</a>
+            {% else %}
+                <a href="/login" class="nav-link">登录</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

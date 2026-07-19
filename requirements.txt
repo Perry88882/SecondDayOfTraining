@@ -1,0 +1,4 @@
+Flask>=3.0
+Flask-WTF>=1.2
+Flask-Limiter>=3.5
+werkzeug>=3.0
