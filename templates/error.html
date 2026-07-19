@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ title or "出错了" }} - 用户管理系统{% endblock %}
+
+{% block content %}
+<div class="card error-card">
+    <div class="error-icon">{{ code }}</div>
+    <h2 class="error-title">{{ title or "出错了" }}</h2>
+    <p class="error-message">{{ message or "请稍后重试" }}</p>
+    <div class="error-actions">
+        <a href="javascript:history.back()" class="btn btn-secondary">返回上一页</a>
+        <a href="/" class="btn btn-primary">返回首页</a>
+    </div>
+</div>
+{% endblock %}

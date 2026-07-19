@@ -5,29 +5,38 @@
 <div class="card">
     {% if user %}
         <h2>欢迎回来，{{ user.username }}！</h2>
+
+        <div class="user-meta">
+            <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+        </div>
+
         <div class="user-info">
             <div class="info-item">
-                <span class="info-label">用户名：</span>
+                <span class="info-label">用户名</span>
                 <span class="info-value">{{ user.username }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">邮箱：</span>
+                <span class="info-label">邮箱</span>
                 <span class="info-value">{{ user.email }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">手机：</span>
+                <span class="info-label">手机</span>
                 <span class="info-value">{{ user.phone }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">角色：</span>
+                <span class="info-label">角色</span>
                 <span class="info-value">{{ user.role }}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">余额：</span>
-                <span class="info-value">{{ user.balance }}</span>
+                <span class="info-label">余额</span>
+                <span class="info-value">{{ "¥{:,.2f}".format(user.balance) }}</span>
             </div>
         </div>
-        <a href="/logout" class="btn btn-primary">退出登录</a>
+
+        <div class="logout-actions">
+            <a href="/health" class="btn btn-secondary btn-sm">系统状态</a>
+            <a href="/logout" class="btn btn-primary">退出登录</a>
+        </div>
     {% else %}
         <h2>请先登录</h2>
         <p class="text-muted">您尚未登录，请先登录系统以查看用户信息。</p>

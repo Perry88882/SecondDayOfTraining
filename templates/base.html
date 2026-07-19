@@ -3,24 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="用户信息管理平台">
     <title>{% block title %}用户管理系统{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">用户管理系统</div>
-        <div class="nav-menu">
-            {% if session.get("username") %}
-                <span class="nav-welcome">欢迎，{{ session["username"] }}</span>
-                <a href="/logout" class="nav-link">退出</a>
-            {% else %}
-                <a href="/login" class="nav-link">登录</a>
-            {% endif %}
-        </div>
-    </nav>
+    <header>
+        <nav class="navbar" role="navigation" aria-label="主导航">
+            <a href="/" class="nav-brand" aria-label="返回首页">用户管理系统</a>
+            <div class="nav-menu">
+                {% if session.get("username") %}
+                    <span class="nav-welcome">欢迎，{{ session["username"] }}</span>
+                    <a href="/logout" class="nav-link">退出</a>
+                {% else %}
+                    <a href="/login" class="nav-link">登录</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
 
-    <main class="container">
+    <main class="container" role="main">
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="footer">
+        <span class="footer-text">用户管理系统 V3.0 &copy; 2026</span>
+    </footer>
 </body>
 </html>
