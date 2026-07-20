@@ -1,10 +1,10 @@
 # SQL 注入漏洞测试与修复实验报告
 
 > **实验环境**: Kali Linux / Python 3.13 / Flask + SQLite  
-> **实验日期**: 2026-07-19  
+> **实验日期**: 2026-07-20  
 > **测试目标**: http://127.0.0.1:5000  
 > **代码仓库**: https://github.com/Perry88882/SecondDayOfTraining  
-> **作者**: Perry
+> **作者**: Perry Pu（蒲宇贤）
 
 ---
 
