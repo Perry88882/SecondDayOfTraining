@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}用户注册 - 用户管理系统{% endblock %}
+
+{% block content %}
+<div class="card register-card">
+    <h2>用户注册</h2>
+
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    {% if success %}
+        <div class="success-message">{{ success }}</div>
+    {% endif %}
+
+    <form method="POST" action="/register" class="register-form" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="username">用户名</label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                class="form-control"
+                placeholder="请输入用户名"
+                required
+                autofocus
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">密码</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control"
+                placeholder="请输入密码"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="email">邮箱</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                class="form-control"
+                placeholder="请输入邮箱"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="phone">手机号</label>
+            <input
+                type="text"
+                id="phone"
+                name="phone"
+                class="form-control"
+                placeholder="请输入手机号"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">注 册</button>
+    </form>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/login">已有账号？去登录</a>
+    </div>
+</div>
+{% endblock %}
