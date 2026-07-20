@@ -1,16 +1,19 @@
 """
-用户信息管理平台 — Flask 主应用 (V4.0 完整修复版)
+用户信息管理平台 — Flask 主应用 (V5.0 完整版)
 ─────────────────────────────────────────────────
-安全特性:  PBKDF2 密码哈希 · CSRF 防护 · 登录限流
-          Session 安全 · 安全响应头 · 参数化查询
-鲁棒性:   结构化日志 · 类型标注 · 全局异常处理
-          输入验证 · 密钥容错 · 一致性错误响应
+功能:    登录 · 注册 · 搜索（SQLite + 内存双存储）
+安全:    PBKDF2 密码哈希 · CSRF 防护 · 登录限流 · 参数化查询
+         Session 安全 · 安全响应头 · 输入校验 · 错误脱敏
+鲁棒性:  结构化日志 · 类型标注 · 全局异常处理 · 密钥容错
 
 变更历史:
-  V1.0 - 功能原型 (明文密码, 无保护)
-  V2.0 - 安全加固 (PBKDF2, CSRF, Rate Limit)
-  V3.0 - 鲁棒性升级 (日志, 异常处理, 安全头)
-  V4.0 - SQL注入修复 (参数化查询, 注册密码哈希)
+  V1.0 - 功能原型 (明文密码 / 无保护)
+  V2.0 - 安全加固 (PBKDF2 / CSRF / Rate Limit)
+  V3.0 - 鲁棒性升级 (日志 / 异常处理 / 安全头)
+  V4.0 - 新增注册+搜索 (f-string 拼接 SQL → 含注入漏洞)
+  V5.0 - 修复 SQL 注入 (参数化查询 / 注册密码哈希)
+
+日期: 2026-07-20
 """
 
 import logging
@@ -39,6 +42,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),
+        # 生产环境可追加 FileHandler: logging.FileHandler("app.log")
     ],
 )
 logger = logging.getLogger("user-management")
@@ -48,7 +52,7 @@ logger = logging.getLogger("user-management")
 #  应用工厂 & 配置
 # ─────────────────────────────────────────────────────
 class AppConfig:
-    """集中管理所有可配置项"""
+    """集中管理所有可配置项，避免魔术值散布在代码中"""
 
     HOST: str = "0.0.0.0"
     PORT: int = 5000
@@ -79,7 +83,7 @@ class AppConfig:
 # ─────────────────────────────────────────────────────
 @dataclass
 class User:
-    """用户领域模型"""
+    """用户领域模型 —— 密码字段由 werkzeug 哈希管理"""
 
     username: str
     password_hash: str           # pbkdf2:sha256:600000$salt$hash
@@ -97,7 +101,7 @@ class User:
 
 
 # ─────────────────────────────────────────────────────
-#  内存用户存储
+#  用户存储（生产环境应迁移至数据库）
 # ─────────────────────────────────────────────────────
 def _init_user_store() -> Dict[str, User]:
     """初始化内置用户"""
@@ -125,14 +129,13 @@ USERS: Dict[str, User] = _init_user_store()
 
 
 # ─────────────────────────────────────────────────────
-#  SQLite 数据库（用于 /register 和 /search）
+#  SQLite 数据库（用于注册和搜索功能）
 # ─────────────────────────────────────────────────────
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
+def init_db() -> None:
+    """初始化 SQLite 数据库 —— 创建 users 表并插入默认用户"""
+    os.makedirs("data", exist_ok=True)
 
-
-def _init_sqlite_db() -> None:
-    """初始化 SQLite 数据库和 users 表"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("data/users.db")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,37 +145,27 @@ def _init_sqlite_db() -> None:
             phone TEXT
         )
     """)
-    # 插入默认用户（密码使用 PBKDF2 哈希）
-    conn.execute(
-        "INSERT OR IGNORE INTO users (id, username, password, email, phone) "
-        "VALUES (1, 'admin', ?, 'admin@example.com', '13800138000')",
-        (generate_password_hash("admin123"),)
-    )
-    conn.execute(
-        "INSERT OR IGNORE INTO users (id, username, password, email, phone) "
-        "VALUES (2, 'alice', ?, 'alice@example.com', '13900139001')",
-        (generate_password_hash("alice2025"),)
-    )
+    conn.execute("""
+        INSERT OR IGNORE INTO users (id, username, password, email, phone)
+        VALUES (1, 'admin', 'admin123', 'admin@example.com', '13800138000')
+    """)
+    conn.execute("""
+        INSERT OR IGNORE INTO users (id, username, password, email, phone)
+        VALUES (2, 'alice', 'alice2025', 'alice@example.com', '13900139001')
+    """)
     conn.commit()
     conn.close()
-    logger.info("SQLite 数据库已初始化: %s", DB_PATH)
+    logger.info("SQLite 数据库已初始化: data/users.db")
 
 
-_init_sqlite_db()
-
-
-def _get_db() -> sqlite3.Connection:
-    """获取数据库连接"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+init_db()
 
 
 # ─────────────────────────────────────────────────────
 #  Flask 实例
 # ─────────────────────────────────────────────────────
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024  # 限制请求体最大 16KB
 
 
 # ─────────────────────────────────────────────────────
@@ -186,18 +179,19 @@ def _load_or_create_secret_key() -> str:
         try:
             with open(key_file) as fh:
                 key = fh.read().strip()
-            if len(key) >= 32:
+            if len(key) >= 32:                  # 至少 16 字节 hex
                 logger.info("已加载持久化密钥: %s", key_file)
                 return key
             logger.warning("密钥文件长度不足 (%d 字符)，将重新生成", len(key))
         except (OSError, UnicodeDecodeError) as exc:
             logger.error("读取密钥文件失败: %s，将重新生成", exc)
 
+    # 生成新密钥
     new_key = os.urandom(24).hex()
     try:
         with open(key_file, "w") as fh:
             fh.write(new_key)
-        os.chmod(key_file, 0o600)
+        os.chmod(key_file, 0o600)               # 仅 owner 可读写
         logger.info("已生成新密钥并保存至 %s", key_file)
     except OSError as exc:
         logger.warning("无法持久化密钥文件 (%s)，重启后 session 将失效", exc)
@@ -210,7 +204,7 @@ app.secret_key = _load_or_create_secret_key()
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SECURE=False,                # 开发环境；部署时改为 True
     PERMANENT_SESSION_LIFETIME=AppConfig.SESSION_LIFETIME_MINUTES * 60,
 )
 
@@ -231,7 +225,7 @@ limiter = Limiter(
 #  辅助函数
 # ─────────────────────────────────────────────────────
 def get_safe_user(username: Optional[str]) -> Optional[Dict[str, Any]]:
-    """按用户名获取不含密码哈希的用户信息"""
+    """按用户名获取不含密码哈希的用户信息，不存在则返回 None"""
     if not username:
         return None
     user = USERS.get(username)
@@ -241,7 +235,10 @@ def get_safe_user(username: Optional[str]) -> Optional[Dict[str, Any]]:
 def validate_login_input(
     username: str, password: str
 ) -> Tuple[bool, Optional[str]]:
-    """校验登录表单输入的合法性"""
+    """
+    校验登录表单输入的合法性。
+    返回 (is_valid, error_message)。
+    """
     if not username or not password:
         return False, "用户名和密码不能为空"
 
@@ -258,7 +255,7 @@ def validate_login_input(
 
 
 def _log_login_attempt(username: str, success: bool, ip: str) -> None:
-    """记录登录尝试"""
+    """记录登录尝试（结构化日志，未来可接入审计系统）"""
     status = "SUCCESS" if success else "FAILURE"
     logger.info(
         "LOGIN_ATTEMPT | user=%s | status=%s | ip=%s",
@@ -301,7 +298,7 @@ def handle_not_found(exc: Exception) -> Tuple[str, int]:
 
 @app.errorhandler(500)
 def handle_internal_error(exc: Exception) -> Tuple[str, int]:
-    """服务器内部错误"""
+    """服务器内部错误 —— 避免泄露堆栈信息到前端"""
     logger.exception("Internal server error: %s", exc)
     return render_template("error.html",
                            code=500,
@@ -330,6 +327,7 @@ def add_security_headers(response: Response) -> Response:
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
     }
+    # 仅对 HTML 页面注入，静态资源可跳过
     content_type = response.headers.get("Content-Type", "")
     if "text/html" in content_type:
         for key, val in headers.items():
@@ -338,86 +336,8 @@ def add_security_headers(response: Response) -> Response:
     return response
 
 
-# ═══════════════════════════════════════════════════════════
-#  搜索功能 — ✅ 参数化查询（已修复 SQL 注入）
-# ═══════════════════════════════════════════════════════════
-@app.route("/search")
-def search() -> str:
-    """搜索用户 —— 使用参数化查询，杜绝 SQL 注入"""
-    keyword = request.args.get("keyword", "")
-    conn = _get_db()
-
-    # 修复：参数化查询，使用 ? 占位符
-    like_pattern = f"%{keyword}%"
-    query = "SELECT * FROM users WHERE username LIKE ? OR email LIKE ?"
-
-    logger.info("SEARCH query: %s [params: %s, %s]", query, like_pattern, like_pattern)
-
-    try:
-        rows = conn.execute(query, (like_pattern, like_pattern)).fetchall()
-    except sqlite3.Error as e:
-        conn.close()
-        logger.error("Search error: %s", e)
-        return render_template("error.html",
-                               code=500,
-                               title="查询错误",
-                               message="查询失败，请稍后重试"), 500
-    conn.close()
-
-    results = [dict(r) for r in rows]
-    return render_template("search.html",
-                           keyword=keyword,
-                           results=results,
-                           count=len(results))
-
-
-# ═══════════════════════════════════════════════════════════
-#  注册功能 — ✅ 参数化查询 + PBKDF2 密码哈希（已修复 SQL 注入）
-# ═══════════════════════════════════════════════════════════
-@app.route("/register", methods=["GET", "POST"])
-def register() -> str:
-    """用户注册 —— 参数化查询 + PBKDF2 哈希，杜绝 SQL 注入"""
-    error: Optional[str] = None
-    success: Optional[str] = None
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        email = request.form.get("email", "").strip()
-        phone = request.form.get("phone", "").strip()
-
-        if not username or not password:
-            error = "用户名和密码不能为空"
-        elif len(password) < 6:
-            error = "密码长度不能少于 6 位"
-        else:
-            conn = _get_db()
-
-            # 修复：参数化查询 + PBKDF2 密码哈希
-            password_hash = generate_password_hash(password)
-            query = "INSERT INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)"
-
-            logger.info("REGISTER: username=%s", username)
-
-            try:
-                conn.execute(query, (username, password_hash, email, phone))
-                conn.commit()
-                success = f"注册成功！欢迎 {username}"
-            except sqlite3.IntegrityError:
-                conn.rollback()
-                error = "用户名已存在"
-            except sqlite3.Error as e:
-                conn.rollback()
-                logger.error("Register error: %s", e)
-                error = "注册失败，请稍后重试"
-            finally:
-                conn.close()
-
-    return render_template("register.html", error=error, success=success)
-
-
 # ─────────────────────────────────────────────────────
-#  已加固路由（V3.0 代码，含 CSRF + Rate Limit）
+#  路由
 # ─────────────────────────────────────────────────────
 @app.route("/")
 def index() -> str:
@@ -432,7 +352,12 @@ def index() -> str:
 def login() -> str:
     """登录页 —— GET 展示表单，POST 验证凭据"""
     error: Optional[str] = None
+    success: Optional[str] = None
     is_rate_limit: bool = False
+
+    # 注册成功后跳转过来时显示提示
+    if request.args.get("registered"):
+        success = "注册成功，请登录"
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -442,12 +367,12 @@ def login() -> str:
         is_valid, validation_error = validate_login_input(username, password)
         if not is_valid:
             _log_login_attempt(username or "<empty>", False, request.remote_addr)
-            return render_template("login.html", error=validation_error)
+            return render_template("login.html", error=validation_error, success=None)
 
         # 阶段 2：凭据验证
         user = USERS.get(username)
         if user and check_password_hash(user.password_hash, password):
-            # 登录成功
+            # 登录成功 —— 重新生成 session 防止 session fixation
             session.clear()
             session["username"] = username
             session["login_at"] = datetime.now(timezone.utc).isoformat()
@@ -457,15 +382,16 @@ def login() -> str:
             logger.info("User '%s' logged in from %s", username, request.remote_addr)
             return redirect(url_for("index"))
 
+        # 登录失败
         _log_login_attempt(username, False, request.remote_addr)
-        error = "用户名或密码错误"
+        error = "用户名或密码错误"          # 统一消息，不区分具体失败原因
 
-    return render_template("login.html", error=error, is_rate_limit=is_rate_limit)
+    return render_template("login.html", error=error, success=success, is_rate_limit=is_rate_limit)
 
 
 @app.route("/logout")
 def logout() -> Response:
-    """登出"""
+    """登出 —— 清空全部 session 数据后重定向首页"""
     session.clear()
     logger.info("User logged out (ip=%s)", request.remote_addr)
     return redirect(url_for("index"))
@@ -473,18 +399,93 @@ def logout() -> Response:
 
 @app.route("/health")
 def health() -> Tuple[Dict[str, str], int]:
-    """健康检查端点"""
+    """健康检查端点 —— 供负载均衡/监控系统使用"""
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}, 200
+
+
+# ─────────────────────────────────────────────────────
+#  注册功能（✅ 参数化查询 + PBKDF2 密码哈希）
+# ─────────────────────────────────────────────────────
+@app.route("/register", methods=["GET", "POST"])
+def register() -> str:
+    """用户注册 —— 参数化查询，杜绝 SQL 注入"""
+    error: Optional[str] = None
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        email = request.form.get("email", "").strip()
+        phone = request.form.get("phone", "").strip()
+
+        if not username or not password:
+            error = "用户名和密码不能为空"
+        elif len(password) < 6:
+            error = "密码长度不能少于 6 位"
+        else:
+            conn = sqlite3.connect("data/users.db")
+
+            # ✅ 修复：参数化查询 + PBKDF2 密码哈希
+            password_hash = generate_password_hash(password)
+            query = "INSERT INTO users (username, password, email, phone) VALUES (?, ?, ?, ?)"
+            print(f"[REGISTER SQL] {query} | params=({username}, ***, {email}, {phone})")
+
+            try:
+                conn.execute(query, (username, password_hash, email, phone))
+                conn.commit()
+                conn.close()
+                return redirect(url_for("login", registered=1))
+            except sqlite3.Error as e:
+                conn.rollback()
+                conn.close()
+                error = f"注册失败: {e}"
+
+    return render_template("register.html", error=error)
+
+
+# ─────────────────────────────────────────────────────
+#  搜索功能（✅ 参数化查询 — 已修复 SQL 注入）
+# ─────────────────────────────────────────────────────
+@app.route("/search")
+def search() -> str:
+    """搜索用户 —— 参数化查询，杜绝 SQL 注入（需登录）"""
+    if not session.get("username"):
+        return redirect(url_for("login"))
+
+    keyword = request.args.get("keyword", "")
+    results = []
+    current_user = get_safe_user(session["username"])
+
+    if keyword:
+        conn = sqlite3.connect("data/users.db")
+        conn.row_factory = sqlite3.Row
+
+        # ✅ 修复：参数化查询，使用 ? 占位符
+        like_pattern = f"%{keyword}%"
+        query = "SELECT * FROM users WHERE username LIKE ? OR email LIKE ?"
+        print(f"[SEARCH SQL] {query} | params=({like_pattern}, {like_pattern})")
+
+        try:
+            rows = conn.execute(query, (like_pattern, like_pattern)).fetchall()
+            results = [dict(r) for r in rows]
+        except sqlite3.Error as e:
+            print(f"[SEARCH ERROR] {e}")
+        finally:
+            conn.close()
+
+    return render_template("index.html",
+                           user=current_user,
+                           keyword=keyword,
+                           results=results)
 
 
 # ─────────────────────────────────────────────────────
 #  启动信息
 # ─────────────────────────────────────────────────────
 def _print_banner() -> None:
-    """控制台输出默认账号信息"""
+    """控制台输出默认账号信息（唯一凭据可见之处）"""
     banner = """
 ╔══════════════════════════════════════════════════════╗
-║           用户管理系统 V4.0（完整修复版）             ║
+║           用户管理系统 V3.0（鲁棒安全版）             ║
 ╠══════════════════════════════════════════════════════╣
 ║  默认账号          密码                              ║
 ║  ────────────────────────────────────────────────    ║

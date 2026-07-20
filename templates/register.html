@@ -9,12 +9,9 @@
         <div class="error-message">{{ error }}</div>
     {% endif %}
 
-    {% if success %}
-        <div class="success-message">{{ success }}</div>
-    {% endif %}
-
     <form method="POST" action="/register" class="register-form" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="form-group">
             <label for="username">用户名</label>
             <input
@@ -24,6 +21,7 @@
                 class="form-control"
                 placeholder="请输入用户名"
                 required
+                autocomplete="username"
                 autofocus
             >
         </div>
@@ -37,6 +35,7 @@
                 class="form-control"
                 placeholder="请输入密码"
                 required
+                autocomplete="new-password"
             >
         </div>
 
@@ -66,7 +65,7 @@
     </form>
 
     <div style="margin-top: 20px; text-align: center;">
-        <a href="/login">已有账号？去登录</a>
+        已有账号？<a href="/login">去登录</a>
     </div>
 </div>
 {% endblock %}

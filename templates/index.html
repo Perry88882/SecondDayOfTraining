@@ -43,4 +43,62 @@
         <a href="/login" class="btn btn-primary">前往登录</a>
     {% endif %}
 </div>
+
+{# ═══════════════════════════════════════════════════ #}
+{#  搜索功能（仅登录后可见）                            #}
+{# ═══════════════════════════════════════════════════ #}
+{% if user %}
+<div class="card search-card">
+    <h2>用户搜索</h2>
+
+    <form method="GET" action="/search" class="search-form">
+        <div class="form-group">
+            <div style="display: flex; gap: 10px;">
+                <input
+                    type="text"
+                    name="keyword"
+                    class="form-control"
+                    placeholder="输入用户名或邮箱关键词搜索..."
+                    value="{{ keyword or '' }}"
+                    style="flex: 1;"
+                >
+                <button type="submit" class="btn btn-primary">搜索</button>
+            </div>
+        </div>
+    </form>
+
+    {% if keyword %}
+        <div class="search-result-count" style="margin-top: 12px; color: #666; font-size: 14px;">
+            搜索 "{{ keyword }}" — 共找到 {{ results|length }} 条结果
+        </div>
+    {% endif %}
+
+    {% if results %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>手机</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in results %}
+                <tr>
+                    <td>{{ row.id }}</td>
+                    <td>{{ row.username }}</td>
+                    <td>{{ row.email }}</td>
+                    <td>{{ row.phone }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% elif keyword %}
+        <div class="empty-state">
+            <p>无搜索结果</p>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}

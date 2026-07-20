@@ -5,6 +5,10 @@
 <div class="card login-card">
     <h2>用户登录</h2>
 
+    {% if success %}
+        <div class="success-message">{{ success }}</div>
+    {% endif %}
+
     {% if error %}
         <div class="{% if is_rate_limit %}warning-message{% else %}error-message{% endif %}">
             {{ error }}
