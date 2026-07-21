@@ -429,7 +429,7 @@ Class01/
 
 ```bash
 pip install -r requirements.txt
-cd Class01 && python3 app.py
+cd /opt/Class01 && python3 app.py
 # http://127.0.0.1:5000
 ```
 
