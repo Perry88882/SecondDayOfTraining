@@ -20,6 +20,8 @@ import logging
 import os
 import sqlite3
 import sys
+import uuid
+import imghdr
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Optional, Tuple
@@ -165,7 +167,7 @@ init_db()
 #  Flask 实例
 # ─────────────────────────────────────────────────────
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024  # 限制请求体最大 16KB
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 限制请求体最大 16MB
 
 
 # ─────────────────────────────────────────────────────
@@ -476,6 +478,101 @@ def search() -> str:
                            user=current_user,
                            keyword=keyword,
                            results=results)
+
+
+# ─────────────────────────────────────────────────────
+#  头像上传功能（✅ 已修复 — 白名单+重命名+内容校验）
+# ─────────────────────────────────────────────────────
+UPLOAD_DIR = os.path.join(app.static_folder, "uploads")
+ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+
+
+def _sanitize_filename(filename: str) -> str:
+    """
+    清洗文件名，防止各种后缀绕过：
+    - 去除路径穿越 (../)
+    - 去除 ::$DATA NTFS 流
+    - 去除尾部空格和点号
+    - 去除 null 字节
+    - 转换为小写
+    """
+    # 去除路径穿越
+    filename = filename.replace("\\", "/")
+    filename = filename.split("/")[-1]  # 只保留最后一段
+
+    # 去除 ::$DATA 等 NTFS 备用数据流
+    if "::" in filename:
+        filename = filename.split("::")[0]
+
+    # 去除 null 字节
+    filename = filename.replace("\x00", "")
+
+    # 去除尾部空格和点号（防止 shell.php. / shell.php  ）
+    filename = filename.rstrip(". ")
+    if not filename:
+        return ""
+
+    # 转换为小写
+    filename = filename.lower()
+
+    return filename
+
+
+def _is_allowed_file(filename: str) -> bool:
+    """白名单校验文件扩展名"""
+    if "." not in filename:
+        return False
+    ext = filename.rsplit(".", 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+
+@app.route("/upload", methods=["GET", "POST"])
+@csrf.exempt
+def upload() -> str:
+    """头像上传 —— 白名单校验 + UUID 重命名 + 内容验证"""
+    if not session.get("username"):
+        return redirect(url_for("login"))
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    message: Optional[str] = None
+    file_url: Optional[str] = None
+
+    if request.method == "POST":
+        if "file" not in request.files:
+            message = "没有选择文件"
+        else:
+            f = request.files["file"]
+            if f.filename == "":
+                message = "没有选择文件"
+            else:
+                # 清洗文件名
+                safe_filename = _sanitize_filename(f.filename)
+                if not safe_filename:
+                    message = "文件名无效"
+                elif not _is_allowed_file(safe_filename):
+                    message = "仅允许上传图片文件 (jpg/jpeg/png/gif/webp)"
+                else:
+                    # 读取文件头, 验证是否为真实图片
+                    file_data = f.read(512)
+                    f.seek(0)
+                    detected = imghdr.what(None, file_data)
+                    if detected is None:
+                        message = "文件内容不是有效图片"
+                    elif detected not in ("jpeg", "png", "gif", "webp"):
+                        message = f"不允许的图片类型: {detected}"
+                    else:
+                        # UUID 重命名，防止覆盖和路径遍历
+                        ext = safe_filename.rsplit(".", 1)[1]
+                        new_name = f"{uuid.uuid4().hex}.{ext}"
+                        save_path = os.path.join(UPLOAD_DIR, new_name)
+                        f.save(save_path)
+                        file_url = url_for("static", filename=f"uploads/{new_name}")
+                        message = "上传成功"
+
+    return render_template("upload.html",
+                           message=message,
+                           file_url=file_url)
 
 
 # ─────────────────────────────────────────────────────

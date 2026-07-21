@@ -416,6 +416,57 @@ body {
     padding-top: 8px;
 }
 
+/* ── 上传头像 ──────────────────────────────────── */
+.upload-card {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.form-control-file {
+    padding: 8px 4px;
+    font-size: 14px;
+}
+
+.preview-section {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: #fafafa;
+    border-radius: var(--radius);
+    border: 1px solid #f0f0f0;
+}
+
+.preview-section h3 {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+}
+
+.avatar-preview {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 50%;
+    border: 3px solid var(--color-primary);
+    box-shadow: 0 2px 12px rgba(102, 126, 234, 0.2);
+    object-fit: cover;
+}
+
+.file-link {
+    margin-top: 10px;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.file-link a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.file-link a:hover {
+    text-decoration: underline;
+}
+
 /* ── 辅助 ────────────────────────────────────────── */
 .text-muted {
     color: var(--color-text-muted);
