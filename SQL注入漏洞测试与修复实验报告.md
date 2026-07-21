@@ -3,7 +3,7 @@
 > **实验环境**: Kali Linux / Python 3.13 / Flask + SQLite  
 > **实验日期**: 2026-07-20  
 > **测试目标**: http://127.0.0.1:5000  
-> **代码仓库**: https://github.com/Perry88882/SecondDayOfTraining  
+> **代码仓库**: https://github.com/Perry88882/Summer-Training-Project  
 > **作者**: Perry Pu（蒲宇贤）
 
 ---
@@ -437,5 +437,5 @@ cd /opt/Class01 && python3 app.py
 
 ---
 
-*GitHub: https://github.com/Perry88882/SecondDayOfTraining*  
+*GitHub: https://github.com/Perry88882/Summer-Training-Project*  
 *日期: 2026-07-20*
