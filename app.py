@@ -155,6 +155,11 @@ def init_db() -> None:
         INSERT OR IGNORE INTO users (id, username, password, email, phone)
         VALUES (2, 'alice', 'alice2025', 'alice@example.com', '13900139001')
     """)
+    # 新增 balance 列（如果不存在）
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # 列已存在
     conn.commit()
     conn.close()
     logger.info("SQLite 数据库已初始化: data/users.db")
@@ -573,6 +578,94 @@ def upload() -> str:
     return render_template("upload.html",
                            message=message,
                            file_url=file_url)
+
+
+# ─────────────────────────────────────────────────────
+#  个人中心 + 充值功能（✅ 已修复越权漏洞和业务逻辑漏洞）
+# ─────────────────────────────────────────────────────
+def _get_current_sqlite_user() -> Optional[Dict[str, Any]]:
+    """根据 session 中的 username 查询 SQLite 用户"""
+    username = session.get("username")
+    if not username:
+        return None
+    conn = sqlite3.connect("data/users.db")
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT id, username, email, phone, balance FROM users WHERE username = ?",
+        (username,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+@app.route("/profile")
+def profile() -> str:
+    """个人中心 —— 仅允许查看自己的资料"""
+    # 修复1：必须登录
+    if not session.get("username"):
+        return redirect(url_for("login"))
+
+    # 修复2：从 session 获取当前用户，不从 URL 获取 user_id
+    current_user = _get_current_sqlite_user()
+    if not current_user:
+        return render_template("error.html",
+                               code=404,
+                               title="用户不存在",
+                               message="用户不存在"), 404
+
+    return render_template("profile.html",
+                           profile_user=current_user)
+
+
+@app.route("/recharge", methods=["POST"])
+@csrf.exempt
+def recharge() -> str:
+    """充值 —— 仅允许给自己充值，amount 必须为正数"""
+    # 修复1：必须登录
+    if not session.get("username"):
+        return redirect(url_for("login"))
+
+    # 修复2：只允许给自己充值，user_id 从 session 获取而非表单
+    current_user = _get_current_sqlite_user()
+    if not current_user:
+        return render_template("error.html",
+                               code=404,
+                               title="用户不存在",
+                               message="用户不存在"), 404
+
+    user_id = str(current_user["id"])
+    amount = request.form.get("amount", "0")
+
+    # 修复3：校验 amount 必须为正数，且不超过合理上限
+    try:
+        amount_val = float(amount)
+    except (ValueError, TypeError):
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="请输入有效的充值金额"), 400
+
+    if amount_val <= 0:
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="充值金额必须大于0"), 400
+
+    if amount_val > 100000:
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="单次充值金额不能超过 ¥100,000"), 400
+
+    conn = sqlite3.connect("data/users.db")
+    conn.execute(
+        "UPDATE users SET balance = balance + ? WHERE id = ?",
+        (amount_val, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("profile", user_id=user_id))
 
 
 # ─────────────────────────────────────────────────────

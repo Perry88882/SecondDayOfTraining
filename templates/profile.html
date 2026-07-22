@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}个人中心 - 用户管理系统{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>个人中心</h2>
+
+    <div class="user-info">
+        <div class="info-item">
+            <span class="info-label">ID</span>
+            <span class="info-value">{{ profile_user.id }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">用户名</span>
+            <span class="info-value">{{ profile_user.username }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">邮箱</span>
+            <span class="info-value">{{ profile_user.email }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">手机</span>
+            <span class="info-value">{{ profile_user.phone }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">余额</span>
+            <span class="info-value">{{ "¥{:,.2f}".format(profile_user.balance or 0) }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card recharge-card">
+    <h2>账户充值</h2>
+
+    <form method="POST" action="/recharge" class="recharge-form">
+
+        <div class="form-group">
+            <label for="amount">充值金额（元）</label>
+            <input
+                type="number"
+                id="amount"
+                name="amount"
+                class="form-control"
+                placeholder="请输入充值金额"
+                required
+                step="0.01"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">确认充值</button>
+    </form>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/" class="btn btn-secondary btn-sm">返回首页</a>
+    </div>
+</div>
+{% endblock %}
