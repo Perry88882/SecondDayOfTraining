@@ -669,18 +669,29 @@ def recharge() -> str:
 
 
 # ─────────────────────────────────────────────────────
-#  动态页面加载
+#  动态页面加载（✅ 已修复路径穿越）
 # ─────────────────────────────────────────────────────
+PAGES_DIR = os.path.realpath("pages")
+
+
 @app.route("/page")
 def page() -> str:
-    """动态页面加载 —— name 直接拼接路径，不校验 ../"""
+    """动态页面加载 —— 路径穿越已修复"""
     name = request.args.get("name", "")
 
     if not name:
         return "缺少 name 参数", 400
 
-    # 直接拼接用户输入的 name 到路径中
-    page_path = os.path.join("pages", name)
+    # 去除路径分隔符，防止 ../ 穿越
+    name = name.replace("\\", "/")
+    name = name.lstrip("/")
+
+    page_path = os.path.join(PAGES_DIR, name)
+    page_path = os.path.realpath(page_path)
+
+    # 确保解析后的路径仍在 pages/ 目录内
+    if not page_path.startswith(PAGES_DIR + os.sep):
+        return "页面不存在"
 
     # 如果文件存在则读取内容
     if os.path.isfile(page_path):
@@ -689,7 +700,11 @@ def page() -> str:
         return render_template("index.html", page_content=content)
 
     # 不存在 → 尝试加上 .html 后缀
-    page_path_html = os.path.join("pages", name + ".html")
+    page_path_html = os.path.join(PAGES_DIR, name + ".html")
+    page_path_html = os.path.realpath(page_path_html)
+    if not page_path_html.startswith(PAGES_DIR + os.sep):
+        return "页面不存在"
+
     if os.path.isfile(page_path_html):
         with open(page_path_html, "r", encoding="utf-8") as f:
             content = f.read()
