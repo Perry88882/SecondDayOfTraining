@@ -151,6 +151,37 @@ body {
     margin-bottom: 12px;
 }
 
+/* ── 动态页面 ──────────────────────────────────── */
+.page-card {
+    background-color: #f8fafc;
+    border-left: 4px solid var(--color-primary);
+}
+
+.page-card h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: var(--color-primary);
+}
+
+.page-card h3 {
+    font-size: 16px;
+    margin: 16px 0 8px;
+    color: var(--color-text-secondary);
+}
+
+.page-card h4 {
+    font-size: 14px;
+    margin: 12px 0 4px;
+    color: var(--color-text);
+}
+
+.page-card p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+}
+
 .search-form {
     margin-bottom: 8px;
 }

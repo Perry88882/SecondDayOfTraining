@@ -669,6 +669,36 @@ def recharge() -> str:
 
 
 # ─────────────────────────────────────────────────────
+#  动态页面加载
+# ─────────────────────────────────────────────────────
+@app.route("/page")
+def page() -> str:
+    """动态页面加载 —— name 直接拼接路径，不校验 ../"""
+    name = request.args.get("name", "")
+
+    if not name:
+        return "缺少 name 参数", 400
+
+    # 直接拼接用户输入的 name 到路径中
+    page_path = os.path.join("pages", name)
+
+    # 如果文件存在则读取内容
+    if os.path.isfile(page_path):
+        with open(page_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return render_template("index.html", page_content=content)
+
+    # 不存在 → 尝试加上 .html 后缀
+    page_path_html = os.path.join("pages", name + ".html")
+    if os.path.isfile(page_path_html):
+        with open(page_path_html, "r", encoding="utf-8") as f:
+            content = f.read()
+        return render_template("index.html", page_content=content)
+
+    return "页面不存在"
+
+
+# ─────────────────────────────────────────────────────
 #  启动信息
 # ─────────────────────────────────────────────────────
 def _print_banner() -> None:

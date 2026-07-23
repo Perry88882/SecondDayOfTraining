@@ -2,6 +2,15 @@
 {% block title %}首页 - 用户管理系统{% endblock %}
 
 {% block content %}
+{# ═══════════════════════════════════════════════════ #}
+{#  动态页面内容（通过 /page?name=xxx 加载）            #}
+{# ═══════════════════════════════════════════════════ #}
+{% if page_content %}
+<div class="card page-card">
+    {{ page_content|safe }}
+</div>
+{% endif %}
+
 <div class="card">
     {% if user %}
         <h2>欢迎回来，{{ user.username }}！</h2>
@@ -34,6 +43,7 @@
         </div>
 
         <div class="logout-actions">
+            <a href="/page?name=help" class="btn btn-secondary btn-sm">帮助中心</a>
             <a href="/profile" class="btn btn-secondary btn-sm">个人中心</a>
             <a href="/upload" class="btn btn-secondary btn-sm">上传头像</a>
             <a href="/health" class="btn btn-secondary btn-sm">系统状态</a>
