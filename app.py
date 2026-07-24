@@ -669,21 +669,24 @@ def recharge() -> str:
 
 
 # ─────────────────────────────────────────────────────
-#  修改密码功能
+#  修改密码功能（✅ 已修复 CSRF 漏洞 + 越权）
 # ─────────────────────────────────────────────────────
 @app.route("/change-password", methods=["POST"])
-@csrf.exempt
 def change_password() -> str:
-    """修改密码 —— 不验证原密码，不校验 user_id 归属"""
-    username = request.form.get("username", "")
+    """修改密码 —— CSRF 已启用，只能修改自己的密码"""
+    # 修复1: 从 session 获取当前用户
+    if not session.get("username"):
+        return redirect(url_for("login"))
+
+    username = session["username"]     # 不再从表单获取
     new_password = request.form.get("new_password", "")
     confirm_password = request.form.get("confirm_password", "")
 
-    if not username or not new_password:
+    if not new_password:
         return render_template("error.html",
                                code=400,
                                title="参数错误",
-                               message="用户名和新密码不能为空"), 400
+                               message="新密码不能为空"), 400
 
     if new_password != confirm_password:
         return render_template("error.html",
