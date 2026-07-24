@@ -669,6 +669,47 @@ def recharge() -> str:
 
 
 # ─────────────────────────────────────────────────────
+#  修改密码功能
+# ─────────────────────────────────────────────────────
+@app.route("/change-password", methods=["POST"])
+@csrf.exempt
+def change_password() -> str:
+    """修改密码 —— 不验证原密码，不校验 user_id 归属"""
+    username = request.form.get("username", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    if not username or not new_password:
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="用户名和新密码不能为空"), 400
+
+    if new_password != confirm_password:
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="两次输入的密码不一致"), 400
+
+    if len(new_password) < 6:
+        return render_template("error.html",
+                               code=400,
+                               title="参数错误",
+                               message="密码长度不能少于 6 位"), 400
+
+    password_hash = generate_password_hash(new_password)
+    conn = sqlite3.connect("data/users.db")
+    conn.execute(
+        "UPDATE users SET password = ? WHERE username = ?",
+        (password_hash, username)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("profile"))
+
+
+# ─────────────────────────────────────────────────────
 #  动态页面加载（✅ 已修复路径穿越）
 # ─────────────────────────────────────────────────────
 PAGES_DIR = os.path.realpath("pages")
